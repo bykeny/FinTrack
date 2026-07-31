@@ -3,25 +3,28 @@ import { createClient } from "@supabase/supabase-js";
 
 // ─── Environment Variables ───
 function getSupabaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) throw new Error("Missing env: NEXT_PUBLIC_SUPABASE_URL");
-  return url;
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!rawUrl || rawUrl.includes("your-supabase-url") || rawUrl.trim() === "") {
+    throw new Error("Missing or invalid env: NEXT_PUBLIC_SUPABASE_URL. Please update .env.local with a valid Supabase project URL.");
+  }
+  // Sanitize URL by trimming trailing slashes and whitespace
+  return rawUrl.replace(/\/+$|\s+/g, "");
 }
 
 function getSupabaseAnonKey(): string {
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!key) throw new Error("Missing env: NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  return key;
+  const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!rawKey || rawKey.includes("your-supabase-anon-key") || rawKey.trim() === "") {
+    throw new Error("Missing or invalid env: NEXT_PUBLIC_SUPABASE_ANON_KEY. Please update .env.local with a valid Supabase anon key.");
+  }
+  return rawKey.trim();
 }
 
 // ─── Browser Client (for Client Components) ───
-// Safe to call multiple times — `createBrowserClient` deduplicates internally.
 export function createSupabaseBrowserClient() {
   return createBrowserClient(getSupabaseUrl(), getSupabaseAnonKey());
 }
 
 // ─── Generic Client (for Server Components / API Routes / Scripts) ───
-// Use this when you need a simple Supabase client without cookie handling.
 export function createSupabaseClient() {
   return createClient(getSupabaseUrl(), getSupabaseAnonKey());
 }

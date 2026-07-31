@@ -1,5 +1,5 @@
 import { createSupabaseBrowserClient } from "./supabase";
-import { Shift, Transaction } from "./types";
+import { Shift } from "./types";
 
 async function ensureAuth(supabase: any) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -17,15 +17,20 @@ async function ensureAuth(supabase: any) {
       }
     }
   }
+  return session?.user ?? null;
 }
 
 export async function fetchShifts(from?: string, to?: string): Promise<Shift[]> {
   const supabase = createSupabaseBrowserClient();
   await ensureAuth(supabase);
-  let query = supabase.from("shifts").select("*").order("shift_date", { ascending: false }).order("start_time", { ascending: false });
+  let query = supabase
+    .from("shifts")
+    .select("*")
+    .order("date", { ascending: false })
+    .order("start_time", { ascending: false });
 
-  if (from) query = query.gte("shift_date", from);
-  if (to) query = query.lte("shift_date", to);
+  if (from) query = query.gte("date", from);
+  if (to) query = query.lte("date", to);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -34,62 +39,102 @@ export async function fetchShifts(from?: string, to?: string): Promise<Shift[]> 
 
 export async function fetchDefaultHourlyRate(): Promise<number> {
   const supabase = createSupabaseBrowserClient();
-  await ensureAuth(supabase);
-  // Usually we'd get the current user ID, assuming RLS takes care of it or we query a single profile row
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData?.user) return 0.00;
+  const user = await ensureAuth(supabase);
+  if (!user) return 0.00;
 
   const { data, error } = await supabase
     .from("profiles")
     .select("hourly_rate_default")
-    .eq("id", userData.user.id)
+    .eq("id", user.id)
     .single();
 
   if (error) {
-    console.error("Error fetching default hourly rate:", error);
+    console.error("Error fetching default hourly rate:", error.message || error);
     return 0.00;
   }
   return data?.hourly_rate_default ?? 0.00;
 }
 
 export async function createShift(
-  shiftData: Omit<Shift, "id" | "created_at" | "linked_transaction_id">
+  shiftData: Omit<Shift, "id" | "created_at" | "total_hours" | "gross_earnings" | "linked_transaction_id">
 ): Promise<Shift> {
   const supabase = createSupabaseBrowserClient();
-  await ensureAuth(supabase);
+  const user = await ensureAuth(supabase);
 
-  // 1. Insert the shift
+  // Strictly include ONLY column inputs for PostgreSQL generated columns
+  const shiftPayload = {
+    date: shiftData.date,
+    start_time: shiftData.start_time,
+    end_time: shiftData.end_time,
+    break_duration_minutes: shiftData.break_duration_minutes,
+    hourly_rate: shiftData.hourly_rate,
+    notes: shiftData.notes || null,
+    ...(user ? { user_id: user.id } : {}),
+  };
+
+  // 1. Insert the shift (Database computes total_hours and gross_earnings automatically)
   const { data: newShift, error: shiftError } = await supabase
     .from("shifts")
-    .insert(shiftData)
+    .insert(shiftPayload)
     .select()
     .single();
 
   if (shiftError) throw shiftError;
 
-  // 2. Create the linked transaction
-  const transactionData = {
-    amount: shiftData.gross_earnings,
+  // Calculate gross earnings if database returned it or compute fallback
+  let earnings = newShift.gross_earnings;
+  if (earnings === undefined || earnings === null || Number(earnings) === 0) {
+    try {
+      const start = new Date(shiftData.start_time).getTime();
+      const end = new Date(shiftData.end_time).getTime();
+      const diffMs = end - start;
+      const activeMins = Math.max(0, (diffMs / 60000) - (shiftData.break_duration_minutes || 0));
+      earnings = (activeMins / 60) * shiftData.hourly_rate;
+    } catch {
+      earnings = 0;
+    }
+  }
+
+  // Look up an income category ID if one exists in the database
+  let categoryId: string | null = null;
+  try {
+    const { data: catData } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("type", "income")
+      .limit(1)
+      .maybeSingle();
+    if (catData?.id) {
+      categoryId = catData.id;
+    }
+  } catch {
+    // Ignore category lookup errors if unpopulated
+  }
+
+  // 2. Create the linked transaction (omitting nonexistent 'category' text column)
+  const transactionPayload = {
+    amount: parseFloat(Number(earnings).toFixed(2)),
     type: "income",
-    category: "Shift Pay",
-    description: `Shift on ${shiftData.shift_date}`,
-    date: shiftData.shift_date,
-    linked_shift_id: newShift.id,
+    description: `Shift on ${shiftData.date}`,
+    transaction_date: shiftData.date,
+    shift_id: newShift.id,
+    ...(categoryId ? { category_id: categoryId } : {}),
+    ...(user ? { user_id: user.id } : {}),
   };
 
   const { data: newTransaction, error: txError } = await supabase
     .from("transactions")
-    .insert(transactionData)
+    .insert(transactionPayload)
     .select()
     .single();
 
   if (txError) {
-    // Attempt rollback of shift if transaction fails
+    // Rollback shift if transaction fails
     await supabase.from("shifts").delete().eq("id", newShift.id);
     throw txError;
   }
 
-  // 3. Update the shift with the linked transaction ID
+  // 3. Update shift with linked_transaction_id if column exists
   const { data: updatedShift, error: updateError } = await supabase
     .from("shifts")
     .update({ linked_transaction_id: newTransaction.id })
@@ -97,43 +142,54 @@ export async function createShift(
     .select()
     .single();
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    return newShift as Shift;
+  }
 
   return updatedShift as Shift;
 }
 
 export async function updateShift(
   id: string,
-  shiftData: Partial<Omit<Shift, "id" | "created_at" | "linked_transaction_id">>
+  shiftData: Partial<Omit<Shift, "id" | "created_at" | "total_hours" | "gross_earnings" | "linked_transaction_id">>
 ): Promise<Shift> {
   const supabase = createSupabaseBrowserClient();
   await ensureAuth(supabase);
 
+  // Exclude total_hours and gross_earnings from update payload
+  const updatePayload: any = {};
+  if (shiftData.date !== undefined) updatePayload.date = shiftData.date;
+  if (shiftData.start_time !== undefined) updatePayload.start_time = shiftData.start_time;
+  if (shiftData.end_time !== undefined) updatePayload.end_time = shiftData.end_time;
+  if (shiftData.break_duration_minutes !== undefined) updatePayload.break_duration_minutes = shiftData.break_duration_minutes;
+  if (shiftData.hourly_rate !== undefined) updatePayload.hourly_rate = shiftData.hourly_rate;
+  if (shiftData.notes !== undefined) updatePayload.notes = shiftData.notes;
+
   // 1. Update the shift
   const { data: updatedShift, error: shiftError } = await supabase
     .from("shifts")
-    .update(shiftData)
+    .update(updatePayload)
     .eq("id", id)
     .select()
     .single();
 
   if (shiftError) throw shiftError;
 
-  // 2. Update the linked transaction if necessary (if amount or date changed)
-  if (updatedShift.linked_transaction_id && (shiftData.gross_earnings !== undefined || shiftData.shift_date !== undefined)) {
+  // 2. Update linked transaction if needed
+  if (updatedShift.linked_transaction_id) {
     const txUpdate: any = {};
-    if (shiftData.gross_earnings !== undefined) txUpdate.amount = shiftData.gross_earnings;
-    if (shiftData.shift_date !== undefined) {
-      txUpdate.date = shiftData.shift_date;
-      txUpdate.description = `Shift on ${shiftData.shift_date}`;
+    if (updatedShift.gross_earnings !== undefined) {
+      txUpdate.amount = updatedShift.gross_earnings;
+    }
+    if (shiftData.date !== undefined) {
+      txUpdate.transaction_date = shiftData.date;
+      txUpdate.description = `Shift on ${shiftData.date}`;
     }
 
-    const { error: txError } = await supabase
+    await supabase
       .from("transactions")
       .update(txUpdate)
       .eq("id", updatedShift.linked_transaction_id);
-
-    if (txError) throw txError;
   }
 
   return updatedShift as Shift;
@@ -142,21 +198,17 @@ export async function updateShift(
 export async function deleteShift(id: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
   await ensureAuth(supabase);
-  
-  // RLS typically handles cascade deletes if set up at the DB level, but we should explicitly delete the shift.
-  // We can fetch it first to get the transaction ID, or if DB is set to ON DELETE CASCADE on linked_shift_id in transactions, 
-  // deleting the shift is enough. Assuming we manually delete transaction to be safe:
 
-  const { data: shift, error: fetchError } = await supabase
+  const { data: shift } = await supabase
     .from("shifts")
     .select("linked_transaction_id")
     .eq("id", id)
     .single();
 
-  if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
   if (shift?.linked_transaction_id) {
     await supabase.from("transactions").delete().eq("id", shift.linked_transaction_id);
+  } else {
+    await supabase.from("transactions").delete().eq("shift_id", id);
   }
 
   const { error: deleteError } = await supabase.from("shifts").delete().eq("id", id);

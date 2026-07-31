@@ -46,12 +46,13 @@ export function ExpenseList({ expenses, onEdit, onRefresh }: ExpenseListProps) {
     );
   }
 
-  // Group expenses by date
+  // Group expenses by date (transaction_date)
   const groupedExpenses = expenses.reduce((acc, expense) => {
-    if (!acc[expense.date]) {
-      acc[expense.date] = [];
+    const d = expense.transaction_date || "Unknown Date";
+    if (!acc[d]) {
+      acc[d] = [];
     }
-    acc[expense.date].push(expense);
+    acc[d].push(expense);
     return acc;
   }, {} as Record<string, Transaction[]>);
 
@@ -65,7 +66,10 @@ export function ExpenseList({ expenses, onEdit, onRefresh }: ExpenseListProps) {
     if (dateStr === today) return "Today";
     if (dateStr === yesterday) return "Yesterday";
     
-    return new Date(dateStr).toLocaleDateString("en-US", { 
+    const parsed = new Date(dateStr);
+    if (isNaN(parsed.getTime())) return dateStr;
+
+    return parsed.toLocaleDateString("en-US", { 
       weekday: 'short', 
       month: 'short', 
       day: 'numeric',

@@ -12,6 +12,19 @@ interface ShiftListProps {
   onRefresh: () => void;
 }
 
+const formatDisplayTime = (timeStr?: string): string => {
+  if (!timeStr) return "--:--";
+  if (timeStr.includes("T")) {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+  }
+  return timeStr.slice(0, 5);
+};
+
 export function ShiftList({ shifts, onEdit, onRefresh }: ShiftListProps) {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -47,10 +60,11 @@ export function ShiftList({ shifts, onEdit, onRefresh }: ShiftListProps) {
 
   // Group shifts by date
   const groupedShifts = shifts.reduce((acc, shift) => {
-    if (!acc[shift.shift_date]) {
-      acc[shift.shift_date] = [];
+    const d = shift.date || "Unknown Date";
+    if (!acc[d]) {
+      acc[d] = [];
     }
-    acc[shift.shift_date].push(shift);
+    acc[d].push(shift);
     return acc;
   }, {} as Record<string, Shift[]>);
 
@@ -61,7 +75,9 @@ export function ShiftList({ shifts, onEdit, onRefresh }: ShiftListProps) {
     <div className="space-y-6 mt-4">
       {sortedDates.map((date) => {
         const dateObj = new Date(date);
-        const dateStr = dateObj.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
+        const dateStr = isNaN(dateObj.getTime())
+          ? date
+          : dateObj.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric' });
         
         return (
           <div key={date} className="space-y-3">
@@ -77,17 +93,17 @@ export function ShiftList({ shifts, onEdit, onRefresh }: ShiftListProps) {
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col">
                       <span className="font-bold text-lg">
-                        {shift.start_time} - {shift.end_time}
+                        {formatDisplayTime(shift.start_time)} - {formatDisplayTime(shift.end_time)}
                       </span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1"><Clock size={14} /> {shift.total_hours}h active</span>
+                        <span className="flex items-center gap-1"><Clock size={14} /> {(shift.total_hours || 0).toFixed(1)}h active</span>
                         <span>•</span>
-                        <span>{shift.break_minutes}m break</span>
+                        <span>{shift.break_duration_minutes || 0}m break</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="font-bold text-lg text-accent">
-                        €{shift.gross_earnings.toFixed(2)}
+                        €{(shift.gross_earnings || 0).toFixed(2)}
                       </span>
                       <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full mt-1 flex items-center gap-1">
                         <Euro size={12}/> {shift.hourly_rate}/h

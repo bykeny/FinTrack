@@ -40,7 +40,7 @@ export function AddExpenseModal({ isOpen, onClose, onSaved, expenseToEdit, categ
       if (expenseToEdit) {
         setAmount(expenseToEdit.amount.toString());
         setCategoryId(expenseToEdit.category_id || (activeCategories[0]?.id ?? ""));
-        setDate(expenseToEdit.date);
+        setDate(expenseToEdit.transaction_date || "");
         setDescription(expenseToEdit.description || "");
       } else {
         setAmount("");
@@ -76,7 +76,7 @@ export function AddExpenseModal({ isOpen, onClose, onSaved, expenseToEdit, categ
       const expenseData = {
         amount: numAmount,
         category_id: categoryId,
-        date,
+        transaction_date: date,
         description: description.trim() || undefined,
       };
 

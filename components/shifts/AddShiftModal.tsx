@@ -14,6 +14,19 @@ interface AddShiftModalProps {
   defaultHourlyRate?: number;
 }
 
+const formatTimeToHHMM = (timeStr?: string): string => {
+  if (!timeStr) return "09:00";
+  if (timeStr.includes("T")) {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+  }
+  return timeStr.slice(0, 5);
+};
+
 export function AddShiftModal({ isOpen, onClose, onSaved, shiftToEdit, defaultHourlyRate = 0.00 }: AddShiftModalProps) {
   const { toast } = useToast();
   
@@ -25,17 +38,17 @@ export function AddShiftModal({ isOpen, onClose, onSaved, shiftToEdit, defaultHo
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Derived calculations
+  // Derived calculations for UI live preview
   const [activeHours, setActiveHours] = useState(0);
   const [grossEarnings, setGrossEarnings] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
       if (shiftToEdit) {
-        setShiftDate(shiftToEdit.shift_date);
-        setStartTime(shiftToEdit.start_time);
-        setEndTime(shiftToEdit.end_time);
-        setBreakMinutes(shiftToEdit.break_minutes);
+        setShiftDate(shiftToEdit.date);
+        setStartTime(formatTimeToHHMM(shiftToEdit.start_time));
+        setEndTime(formatTimeToHHMM(shiftToEdit.end_time));
+        setBreakMinutes(shiftToEdit.break_duration_minutes || 0);
         setHourlyRate(shiftToEdit.hourly_rate.toString());
       } else {
         const today = new Date();
@@ -98,14 +111,23 @@ export function AddShiftModal({ isOpen, onClose, onSaved, shiftToEdit, defaultHo
     setIsSubmitting(true);
     
     try {
+      // Build full ISO 8601 timestamp strings for TIMESTAMPTZ database column compatibility
+      const startTimestamp = new Date(`${shiftDate}T${startTime}:00`).toISOString();
+
+      let endDate = shiftDate;
+      if (endTime < startTime) {
+        const nextDay = new Date(shiftDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        endDate = nextDay.toISOString().split("T")[0];
+      }
+      const endTimestamp = new Date(`${endDate}T${endTime}:00`).toISOString();
+
       const shiftData = {
-        shift_date: shiftDate,
-        start_time: startTime,
-        end_time: endTime,
-        break_minutes: breakMinutes,
+        date: shiftDate,
+        start_time: startTimestamp,
+        end_time: endTimestamp,
+        break_duration_minutes: breakMinutes,
         hourly_rate: rate,
-        total_hours: parseFloat(activeHours.toFixed(2)),
-        gross_earnings: parseFloat(grossEarnings.toFixed(2)),
       };
 
       if (shiftToEdit) {

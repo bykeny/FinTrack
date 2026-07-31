@@ -30,6 +30,11 @@ const NAV_ITEMS: NavItem[] = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Hide bottom navigation on auth pages
+  if (pathname === "/login" || pathname === "/signup") {
+    return null;
+  }
+
   return (
     <nav
       id="bottom-nav"

@@ -17,6 +17,7 @@ async function ensureAuth(supabase: any) {
       }
     }
   }
+  return session?.user ?? null;
 }
 
 export async function fetchCategories(type?: 'income' | 'expense'): Promise<Category[]> {
@@ -42,18 +43,15 @@ export async function fetchExpenses(
   const supabase = createSupabaseBrowserClient();
   await ensureAuth(supabase);
   
-  // Note: Assuming the foreign key relation is named 'categories' or 'category' in the response.
-  // Using `category_ref:categories(*)` to alias the joined table to `category_ref` to match our type,
-  // or we can fetch it as `categories` and map it locally. We'll fetch as `categories` and map it.
   let query = supabase
     .from("transactions")
     .select("*, categories(*)")
     .eq("type", "expense")
-    .order("date", { ascending: false })
+    .order("transaction_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (from) query = query.gte("date", from);
-  if (to) query = query.lte("date", to);
+  if (from) query = query.gte("transaction_date", from);
+  if (to) query = query.lte("transaction_date", to);
   if (categoryId) query = query.eq("category_id", categoryId);
   if (searchQuery) query = query.ilike("description", `%${searchQuery}%`);
 
@@ -61,7 +59,6 @@ export async function fetchExpenses(
   
   if (error) throw error;
 
-  // Map the response to our Transaction interface
   return (data || []).map((row: any) => ({
     ...row,
     category_ref: row.categories ? row.categories : undefined,
@@ -72,11 +69,15 @@ export async function createExpense(
   expenseData: Omit<Transaction, "id" | "created_at" | "category_ref" | "type">
 ): Promise<Transaction> {
   const supabase = createSupabaseBrowserClient();
-  await ensureAuth(supabase);
+  const user = await ensureAuth(supabase);
   
   const payload = {
-    ...expenseData,
-    type: 'expense'
+    amount: expenseData.amount,
+    category_id: expenseData.category_id,
+    description: expenseData.description || null,
+    transaction_date: expenseData.transaction_date,
+    type: 'expense',
+    ...(user ? { user_id: user.id } : {}),
   };
 
   const { data, error } = await supabase
