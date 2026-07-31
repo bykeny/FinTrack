@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Check } from "lucide-react";
+import { X } from "lucide-react";
 import { Transaction, Category } from "@/lib/types";
 import { createExpense, updateExpense } from "@/lib/expenses";
 import { useToast } from "@/components/ui/Toast";
@@ -164,11 +164,6 @@ export function AddExpenseModal({ isOpen, onClose, onSaved, expenseToEdit, categ
                     <span className="text-xs font-semibold text-center leading-tight truncate w-full">
                       {cat.name}
                     </span>
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 bg-accent text-accent-foreground rounded-full p-0.5">
-                        <Check size={10} strokeWidth={4} />
-                      </div>
-                    )}
                   </button>
                 );
               })}
