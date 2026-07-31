@@ -5,6 +5,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import BottomNav from "@/components/BottomNav";
 import { ToastProvider } from "@/components/ui/Toast";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { PinLockOverlay } from "@/components/security/PinLockOverlay";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +58,11 @@ export default function RootLayout({
       <body className="min-h-dvh bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
           <ToastProvider>
+            {/* Global PWA, Network & Security Overlays */}
+            <OfflineBanner />
+            <InstallBanner />
+            <PinLockOverlay />
+
             {/* Scrollable content area — leaves space for bottom nav */}
             <main className="pb-20">{children}</main>
 
