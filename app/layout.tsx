@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import BottomNav from "@/components/BottomNav";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -53,11 +54,13 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning>
       <body className="min-h-dvh bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
-          {/* Scrollable content area — leaves space for bottom nav */}
-          <main className="pb-20">{children}</main>
+          <ToastProvider>
+            {/* Scrollable content area — leaves space for bottom nav */}
+            <main className="pb-20">{children}</main>
 
-          {/* Sticky bottom navigation shell */}
-          <BottomNav />
+            {/* Sticky bottom navigation shell */}
+            <BottomNav />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
