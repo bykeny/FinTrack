@@ -11,11 +11,22 @@ export interface Shift {
   created_at?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  type: 'income' | 'expense';
+  created_at?: string;
+}
+
 export interface Transaction {
   id: string;
   amount: number;
   type: 'income' | 'expense';
-  category: string;
+  category?: string; // Legacy / shift string fallback
+  category_id?: string;
+  category_ref?: Category; // Mapped from the join on 'categories'
   description?: string;
   date: string;
   linked_shift_id?: string;

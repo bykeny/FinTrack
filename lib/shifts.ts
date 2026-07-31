@@ -1,8 +1,27 @@
 import { createSupabaseBrowserClient } from "./supabase";
 import { Shift, Transaction } from "./types";
 
+async function ensureAuth(supabase: any) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn("⚠️ No Supabase session found. RLS policies may fail.");
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Local dev mode: Attempting to sign in with a default test user to pass RLS...");
+      const email = process.env.NEXT_PUBLIC_TEST_USER_EMAIL || "test@example.com";
+      const password = process.env.NEXT_PUBLIC_TEST_USER_PASSWORD || "password123";
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.warn("Dev mode fallback auth failed:", error.message);
+      } else {
+        console.warn("Dev mode fallback auth succeeded.");
+      }
+    }
+  }
+}
+
 export async function fetchShifts(from?: string, to?: string): Promise<Shift[]> {
   const supabase = createSupabaseBrowserClient();
+  await ensureAuth(supabase);
   let query = supabase.from("shifts").select("*").order("shift_date", { ascending: false }).order("start_time", { ascending: false });
 
   if (from) query = query.gte("shift_date", from);
@@ -15,6 +34,7 @@ export async function fetchShifts(from?: string, to?: string): Promise<Shift[]> 
 
 export async function fetchDefaultHourlyRate(): Promise<number> {
   const supabase = createSupabaseBrowserClient();
+  await ensureAuth(supabase);
   // Usually we'd get the current user ID, assuming RLS takes care of it or we query a single profile row
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData?.user) return 0.00;
@@ -36,6 +56,7 @@ export async function createShift(
   shiftData: Omit<Shift, "id" | "created_at" | "linked_transaction_id">
 ): Promise<Shift> {
   const supabase = createSupabaseBrowserClient();
+  await ensureAuth(supabase);
 
   // 1. Insert the shift
   const { data: newShift, error: shiftError } = await supabase
@@ -86,6 +107,7 @@ export async function updateShift(
   shiftData: Partial<Omit<Shift, "id" | "created_at" | "linked_transaction_id">>
 ): Promise<Shift> {
   const supabase = createSupabaseBrowserClient();
+  await ensureAuth(supabase);
 
   // 1. Update the shift
   const { data: updatedShift, error: shiftError } = await supabase
@@ -119,6 +141,7 @@ export async function updateShift(
 
 export async function deleteShift(id: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
+  await ensureAuth(supabase);
   
   // RLS typically handles cascade deletes if set up at the DB level, but we should explicitly delete the shift.
   // We can fetch it first to get the transaction ID, or if DB is set to ON DELETE CASCADE on linked_shift_id in transactions, 

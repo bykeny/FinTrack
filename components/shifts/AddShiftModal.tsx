@@ -118,7 +118,7 @@ export function AddShiftModal({ isOpen, onClose, onSaved, shiftToEdit, defaultHo
       onSaved();
       onClose();
     } catch (err: any) {
-      console.error(err);
+      console.error("Supabase Error:", err.message || err);
       toast(err.message || "An error occurred while saving the shift.", "error");
     } finally {
       setIsSubmitting(false);

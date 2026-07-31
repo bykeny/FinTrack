@@ -60,7 +60,7 @@ export default function ShiftsPage() {
       const data = await fetchShifts(from, to);
       setShifts(data);
     } catch (err: any) {
-      console.error(err);
+      console.error("Supabase Error:", err.message || err);
       toast("Failed to load shifts", "error");
     } finally {
       setIsLoading(false);
