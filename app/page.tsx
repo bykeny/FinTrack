@@ -1,65 +1,159 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useTheme } from "@/components/ThemeProvider";
+import {
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  ArrowUpRight,
+  Sun,
+  Moon,
+} from "lucide-react";
+
+/* ─── Mock data for demonstration ─── */
+const SUMMARY_CARDS = [
+  {
+    label: "Total Balance",
+    value: "$12,450.00",
+    change: "+4.3%",
+    trend: "up" as const,
+    icon: Wallet,
+  },
+  {
+    label: "Income (Jul)",
+    value: "$5,280.00",
+    change: "+12.1%",
+    trend: "up" as const,
+    icon: TrendingUp,
+  },
+  {
+    label: "Expenses (Jul)",
+    value: "$2,840.00",
+    change: "-3.2%",
+    trend: "down" as const,
+    icon: TrendingDown,
+  },
+];
+
+const RECENT_TRANSACTIONS = [
+  { id: 1, name: "Freelance Payment", amount: "+$1,200.00", date: "Today", type: "income" },
+  { id: 2, name: "Grocery Store", amount: "-$85.40", date: "Today", type: "expense" },
+  { id: 3, name: "Electric Bill", amount: "-$142.00", date: "Yesterday", type: "expense" },
+  { id: 4, name: "Side Project", amount: "+$450.00", date: "Jul 28", type: "income" },
+];
+
+export default function DashboardPage() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="mx-auto max-w-lg px-4 pt-6">
+      {/* ─── Header ─── */}
+      <header className="mb-6 flex items-center justify-between animate-fade-in-up">
+        <div>
+          <p className="text-sm text-muted-foreground">Good evening 👋</p>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <button
+          id="theme-toggle"
+          onClick={toggleTheme}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground transition-all duration-200 hover:bg-border active:scale-95"
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </header>
+
+      {/* ─── Summary Cards ─── */}
+      <section aria-label="Financial summary" className="mb-8 space-y-3">
+        {SUMMARY_CARDS.map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="animate-fade-in-up rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {card.label}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold tracking-tight">
+                    {card.value}
+                  </p>
+                </div>
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                    card.trend === "up"
+                      ? "bg-accent/10 text-accent"
+                      : "bg-destructive/10 text-destructive"
+                  }`}
+                >
+                  <Icon size={20} />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-1.5">
+                <span
+                  className={`flex items-center gap-0.5 text-xs font-semibold ${
+                    card.trend === "up" ? "text-accent" : "text-destructive"
+                  }`}
+                >
+                  <ArrowUpRight
+                    size={12}
+                    className={card.trend === "down" ? "rotate-90" : ""}
+                  />
+                  {card.change}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  vs last month
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* ─── Recent Transactions ─── */}
+      <section aria-label="Recent transactions">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold">Recent Transactions</h2>
+          <button className="text-xs font-medium text-accent hover:underline">
+            See all
+          </button>
         </div>
-      </main>
+        <ul className="space-y-2">
+          {RECENT_TRANSACTIONS.map((tx, i) => (
+            <li
+              key={tx.id}
+              className="animate-fade-in-up flex items-center justify-between rounded-xl border border-border bg-card p-3.5 transition-all duration-200 hover:bg-muted"
+              style={{ animationDelay: `${300 + i * 60}ms` }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold ${
+                    tx.type === "income"
+                      ? "bg-accent/10 text-accent"
+                      : "bg-destructive/10 text-destructive"
+                  }`}
+                >
+                  {tx.type === "income" ? "+" : "−"}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{tx.name}</p>
+                  <p className="text-xs text-muted-foreground">{tx.date}</p>
+                </div>
+              </div>
+              <span
+                className={`text-sm font-semibold ${
+                  tx.type === "income" ? "text-accent" : "text-foreground"
+                }`}
+              >
+                {tx.amount}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
