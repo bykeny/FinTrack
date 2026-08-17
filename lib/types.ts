@@ -33,7 +33,16 @@ export interface Transaction {
   description?: string;
   transaction_date: string; // Formerly date
   shift_id?: string; // Formerly linked_shift_id
+  shift_ref?: Shift;
   created_at?: string;
+}
+
+export interface IncomeSummary {
+  totalIncome: number;
+  shiftIncome: number;
+  totalShiftHours: number;
+  fixedIncome: number;
+  averageHourlyRate: number;
 }
 
 export interface Profile {

@@ -194,10 +194,10 @@ export default function DashboardPage() {
             </p>
             <div className="flex gap-2 mt-4">
               <Link
-                href="/shifts"
+                href="/income"
                 className="px-3.5 py-2 rounded-xl bg-accent text-accent-foreground font-semibold text-xs flex items-center gap-1 shadow-sm hover:bg-accent/90"
               >
-                <Clock size={14} /> Log Shift
+                <Wallet size={14} /> Log Income
               </Link>
               <Link
                 href="/expenses"

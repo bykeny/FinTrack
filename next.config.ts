@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
   // next-pwa injects a webpack plugin; tell Next.js 16+ this is intentional
   // by providing an empty turbopack config so the warning is suppressed.
   turbopack: {},
+  async redirects() {
+    return [
+      {
+        source: "/shifts",
+        destination: "/income",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 const pwaConfig = withPWA({

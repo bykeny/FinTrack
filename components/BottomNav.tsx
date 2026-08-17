@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Clock,
+  Wallet,
   Receipt,
   Target,
   BarChart3,
@@ -20,7 +20,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Shifts", href: "/shifts", icon: Clock },
+  { label: "Income", href: "/income", icon: Wallet },
   { label: "Expenses", href: "/expenses", icon: Receipt },
   { label: "Goals", href: "/goals", icon: Target },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
